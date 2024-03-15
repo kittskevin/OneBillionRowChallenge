@@ -56,34 +56,43 @@ namespace obrc
             Console.WriteLine("}");
         }
 
-        public class WeatherStationData(float initialTemp)
+        public class WeatherStationData(int initialTemp)
         {
-            // TODO: Since it's every value is 1 decimal place can we use ushort / System.UInt16 for the math?
-            public float Min { get; private set; } = initialTemp;
-            public float Max { get; private set; } = initialTemp;
-            public float Mean { get; private set; } = initialTemp;
-            public int Count { get; private set; } = 1;
+            // Internal representation of the temps are the temp * 10_000.
+            // 
+            private const int InternalRepresentationFactor = 10_000;
 
-            public void AddTemp(float temp)
+            private int _min = initialTemp;
+
+            private int _max = initialTemp;
+
+            private long _total = initialTemp;
+
+            private int _count = 1;
+
+            public string Min => IntToFloatString(_min);
+            public string Max => IntToFloatString(_max);
+
+            public string Mean => $"{(_total * 1.0) / _count / InternalRepresentationFactor:0.#}";
+
+            public void AddTemp(int temp)
             {
-                Min = Math.Min(Min, temp);
-                Min = Math.Min(Max, temp);
-                Mean = GetNewMean(Mean, Count, temp);
-                Count++;
+                _min = Math.Min(_min, temp);
+                _max = Math.Max(_max, temp);
+                _total += temp;
+                _count++;
             }
 
-            private float GetNewMean(float mean, int count, float newValue)
+            private string IntToFloatString(int x)
             {
-                // This is very lossy with floating point math.
-                float total = mean * count;
-                return (total + newValue) / (count + 1);
+                return $"{x / InternalRepresentationFactor}.{x % InternalRepresentationFactor}";
             }
         }
 
-        public struct DataRow(string station, float temp)
+        public struct DataRow(string station, int temp)
         {
             public string WeatherStationName { get; } = station;
-            public float Temp { get; } = temp;
+            public int Temp { get; } = temp;
         }
 
 
@@ -94,8 +103,9 @@ namespace obrc
         /// <returns></returns>
         public static DataRow ParseDataRow(string row)
         {
+            // Parse the temp without the decimal and the internal representation will be x10_000
             string[] split = row.Split(';');
-            return new DataRow(split[0], float.Parse(split[1]));
+            return new DataRow(split[0], int.Parse(split[1].Replace(".", ""))); 
         }
     }
 }
